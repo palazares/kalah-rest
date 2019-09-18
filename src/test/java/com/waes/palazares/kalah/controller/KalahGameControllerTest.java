@@ -1,15 +1,12 @@
 package com.waes.palazares.kalah.controller;
 
-import com.waes.palazares.kalah.domain.DifferenceRecord;
-import com.waes.palazares.kalah.domain.DifferenceResult;
 import com.waes.palazares.kalah.domain.GameState;
-import com.waes.palazares.kalah.service.DifferenceService;
+import com.waes.palazares.kalah.service.KalahGameServiceImpl;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
@@ -17,9 +14,7 @@ import reactor.core.publisher.Mono;
 import java.util.Base64;
 
 import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
 
-@WithMockUser(roles = "ADMIN")
 @RunWith(SpringRunner.class)
 @WebFluxTest(controllers = KalahGameController.class)
 public class KalahGameControllerTest {
@@ -27,7 +22,7 @@ public class KalahGameControllerTest {
     WebTestClient client;
 
     @MockBean
-    private DifferenceService differenceService;
+    private KalahGameServiceImpl service;
 
     @Test
     public void shouldCallServiceWhenPutLeft() throws Exception {
@@ -38,7 +33,7 @@ public class KalahGameControllerTest {
         //when
         when(differenceService.putLeft(testId, testContent)).thenReturn(testRecord);
         //then
-        client.mutateWith(csrf())
+        client
                 .put()
                 .uri("/v1/diff/" + testId + "/left")
                 .syncBody(testContent)
@@ -58,7 +53,7 @@ public class KalahGameControllerTest {
         //when
         when(differenceService.putRight(testId, testContent)).thenReturn(testRecord);
         //then
-        client.mutateWith(csrf())
+        client
                 .put()
                 .uri("/v1/diff/" + testId + "/right")
                 .syncBody(testContent)
@@ -81,7 +76,7 @@ public class KalahGameControllerTest {
         //when
         when(differenceService.getDifference(testId)).thenReturn(testRecord);
         //then
-        client.mutateWith(csrf())
+        client
                 .get()
                 .uri("/v1/diff/" + testId)
                 .exchange()
@@ -94,7 +89,7 @@ public class KalahGameControllerTest {
 
     @Test
     public void shouldRedirectToSwaggerUI() {
-        client.mutateWith(csrf()).get().uri("/").exchange()
+        client.get().uri("/").exchange()
                 .expectStatus().is3xxRedirection();
     }
 }

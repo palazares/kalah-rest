@@ -1,7 +1,5 @@
 package com.waes.palazares.kalah.repository;
 
-import com.waes.palazares.kalah.domain.DifferenceRecord;
-import com.waes.palazares.kalah.domain.DifferenceResult;
 import com.waes.palazares.kalah.domain.GameState;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -16,12 +14,12 @@ import static org.junit.Assert.assertNotNull;
 
 @RunWith(SpringRunner.class)
 @DataMongoTest
-public class kalahGameRepositoryTest {
+public class KalahGameRepositoryTest {
     @Autowired
     private ReactiveMongoTemplate mongoTemplate;
 
     @Autowired
-    private kalahGameRepository repository;
+    private KalahGameRepository repository;
 
     @Test
     public void shouldReturnSaved() {

@@ -1,7 +1,5 @@
-package com.waes.palazares.kalah.scalableweb;
+package com.waes.palazares.kalah;
 
-import com.waes.palazares.kalah.domain.DifferenceRecord;
-import com.waes.palazares.kalah.domain.DifferenceResult;
 import com.waes.palazares.kalah.domain.GameState;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -12,8 +10,6 @@ import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.Base64;
@@ -21,7 +17,6 @@ import java.util.Base64;
 import static org.junit.Assert.*;
 
 @RunWith(SpringRunner.class)
-@WithMockUser(roles = "ADMIN")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class KalahWebApplicationTests {
     @LocalServerPort

@@ -1,5 +1,6 @@
 package com.waes.palazares.kalah.service;
 
+import com.waes.palazares.kalah.KalahGame;
 import com.waes.palazares.kalah.domain.GameState;
 import com.waes.palazares.kalah.domain.KalahGameRecord;
 import com.waes.palazares.kalah.exception.*;
@@ -8,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-
-import java.util.Arrays;
 
 /**
  * Implementation of {@code KalahGameService} interface.
@@ -21,43 +20,11 @@ import java.util.Arrays;
 public class KalahGameServiceImpl implements KalahGameService {
     private final KalahGameRepository repository;
 
-    public Mono<DifferenceRecord> getDifference(String id) {
-        var record = repository.findById(id).switchIfEmpty(Mono.error(new InvalidRecordContentException()));
-        var yesResultRecord = record.filter(r -> r.getResult() != null);
-
-        return yesResultRecord
-                .switchIfEmpty(record
-                        .flatMap(rec -> compare(rec).map(x -> rec.toBuilder().result(x).build()))
-                        .flatMap(repository::save));
-    }
-
-    private Mono<DifferenceRecord> putRecord(String id, String doc, boolean isLeft) {
-        log.debug("Put record request with id: {}", id);
-
-
-        if (doc == null || doc.trim().isEmpty()) {
-            log.debug("Record request with id: {} has empty content", id);
-            return Mono.error(new InvalidBase64Exception());
-        }
-
-        var decodedDoc = decode(doc);
-        var record = repository.findById(id).defaultIfEmpty(DifferenceRecord.builder().id(id).build());
-
-        var sameDocRecord = decodedDoc.flatMap(d ->
-                record.filter(rec -> isLeft ? Arrays.equals(rec.getLeft(), d) : Arrays.equals(rec.getRight(), d)));
-
-        return sameDocRecord.switchIfEmpty(
-                decodedDoc.flatMap(d -> record
-                        .map(rec -> isLeft ? rec.toBuilder().left(d).build() : rec.toBuilder().right(d).build()))
-                        .map(rec -> rec.toBuilder().result(null).build())
-                        .flatMap(repository::save));
-    }
-
     @Override
     public Mono<KalahGameRecord> create() {
         log.debug("Create new game request");
 
-        return repository.save(KalahGameRecord.builder().build())
+        return repository.save(new KalahGameRecord())
                 .doOnSuccess(x -> log.debug("New game {} has been created", x.getId()))
                 .doOnError(e -> log.debug("Error during creating a new game: {}", e.getMessage()));
     }
@@ -91,67 +58,34 @@ public class KalahGameServiceImpl implements KalahGameService {
 
         var record = repository.findById(gameId).switchIfEmpty(Mono.error(new InvalidRecordException()));
 
-        return record.map(r -> makeMove(r, pitId)).doOnError(e -> log.debug("Error during move request: {}", e.getMessage()));
+        return record.flatMap(r -> {
+            try {
+                return Mono.just(makeMove(r, pitId));
+            } catch (Exception e) {
+                return Mono.error(e);
+            }
+        }).doOnSuccess(x -> log.debug("Move {} has been successfully performed", pitId))
+                .doOnError(e -> log.debug("Error during move request: {}", e.getMessage()));
     }
 
     private static KalahGameRecord makeMove(KalahGameRecord game, int pitId) throws GameFinishedException, InvalidMoveException {
         if (game.getState() == GameState.FINISHED) {
+            log.debug("Move request for already finished game");
             throw new GameFinishedException();
         }
         if (game.getState() == GameState.NORTH_TURN && pitId < 8) {
+            log.debug("Move request for wrong player. pit: {}", pitId);
             throw new InvalidMoveException();
         }
         if (game.getState() == GameState.SOUTH_TURN && pitId > 6) {
+            log.debug("Move request for wrong player. pit: {}", pitId);
+            throw new InvalidMoveException();
+        }
+        if (game.getStatus()[pitId - 1] < 1) {
+            log.debug("Move request for empty pit: {}", pitId);
             throw new InvalidMoveException();
         }
 
-        var status = game.getStatus();
-        var pitValue = status[pitId - 1];
-
-        if (pitValue < 1) {
-            throw new InvalidMoveException();
-        }
-
-        // seed
-        int i = 1;
-        for (; i <= pitValue; i++) {
-            status[(pitId + i) % 14]++;
-        }
-        // capture
-        if (status[i] == 1 &&
-                (game.getState() == GameState.SOUTH_TURN && pitId < 6 ||
-                        game.getState() == GameState.NORTH_TURN && pitId > 6 && pitId < 13)) {
-
-        }
-
-        return game.toBuilder().state(getNewState(game, i)).build();
-    }
-
-    private static GameState getNewState(KalahGameRecord game, int lastPit) throws InvalidMoveException {
-        GameState newState;
-        if (isGameFinished(game.getStatus())) {
-            newState = GameState.FINISHED;
-        } else if (lastPit == 6 || lastPit == 13) {
-            newState = game.getState();
-        } else {
-            newState = invertState(game.getState());
-        }
-
-        return newState;
-    }
-
-    private static boolean isGameFinished(int[] status) {
-        return false;
-    }
-
-    private static GameState invertState(GameState state) throws InvalidMoveException {
-        switch (state) {
-            case NORTH_TURN:
-                return GameState.SOUTH_TURN;
-            case SOUTH_TURN:
-                return GameState.NORTH_TURN;
-            default:
-                throw new InvalidMoveException();
-        }
+        return KalahGame.makeMove(game, pitId);
     }
 }
