@@ -1,6 +1,7 @@
 package com.waes.palazares.kalah.repository;
 
 import com.waes.palazares.kalah.domain.GameState;
+import com.waes.palazares.kalah.domain.KalahGameRecord;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +10,10 @@ import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.time.Duration;
+import java.util.UUID;
 
+import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 
 @RunWith(SpringRunner.class)
@@ -23,22 +27,18 @@ public class KalahGameRepositoryTest {
 
     @Test
     public void shouldReturnSaved() {
-        // arrange
-        DifferenceRecord sample = DifferenceRecord.builder()
-                .id("testId")
-                .left("leftContent".getBytes())
-                .right("rightContent".getBytes())
-                .result(DifferenceResult.builder().type(GameState.DIFFERENT_SIZE).message("testMessage").build())
-                .build();
-        // act
+        // given
+        var id = UUID.randomUUID();
+        var status = new int[]{5, 7, 6, 6, 6, 6, 0, 5, 7, 6, 6, 6, 6, 0};
+        var state = GameState.FINISHED;
+        var sample = new KalahGameRecord(id, status, state);
+        // when
         repository.save(sample).block(Duration.ofSeconds(30));
-        // assert
-        DifferenceRecord result = mongoTemplate.findById("testId", DifferenceRecord.class).block();
+        // then
+        KalahGameRecord result = mongoTemplate.findById(sample.getId(), KalahGameRecord.class).block(Duration.ofSeconds(30));
         assertNotNull(result);
-        assertEquals("testId", result.getId());
-        assertArrayEquals("leftContent".getBytes(), result.getLeft());
-        assertArrayEquals("rightContent".getBytes(), result.getRight());
-        assertEquals(GameState.DIFFERENT_SIZE, result.getResult().getType());
-        assertEquals("testMessage", result.getResult().getMessage());
+        assertEquals(id, result.getId());
+        assertEquals(state, result.getState());
+        assertArrayEquals(status, result.getStatus());
     }
 }

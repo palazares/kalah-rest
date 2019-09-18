@@ -1,6 +1,6 @@
 package com.waes.palazares.kalah;
 
-import com.waes.palazares.kalah.domain.GameState;
+import com.waes.palazares.kalah.domain.KalahGameState;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +12,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 
@@ -30,202 +31,154 @@ public class KalahWebApplicationTests {
     }
 
     @Test
-    public void shouldReturnRecordWhenPutLeft() {
+    public void shouldReturnGameWhenPostGame() {
         //given
-        String testId = "testId";
-        String testContent = "testContent";
-        String url = "http://localhost:" + localPort + "/v1/diff/" + testId + "/left";
-        HttpEntity<String> request = new HttpEntity<>(Base64.getEncoder().encodeToString(testContent.getBytes()));
+        var url = "http://localhost:" + localPort + "/games";
         //when
-        ResponseEntity<DifferenceRecord> putResponse = testRestTemplate.exchange(url, HttpMethod.PUT, request, DifferenceRecord.class);
+        var postResponse = testRestTemplate.exchange(url, HttpMethod.POST, HttpEntity.EMPTY, KalahGameState.class);
+        //then
+        assertNotNull(postResponse);
+        assertEquals(HttpStatus.CREATED, postResponse.getStatusCode());
+        assertNotNull(postResponse.getBody());
+        assertNotNull(postResponse.getBody().getId());
+        assertEquals(url + "/" + postResponse.getBody().getId(), postResponse.getBody().getUrl());
+    }
+
+    @Test
+    public void shouldReturnGameAfterTheMove() {
+        //given
+        var postUrl = "http://localhost:" + localPort + "/games";
+
+        //when
+        var postResponse = testRestTemplate.exchange(postUrl, HttpMethod.POST, HttpEntity.EMPTY, KalahGameState.class);
+        var putUrl = postResponse.getBody().getUrl() + "/pits/1";
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, KalahGameState.class);
+
         //then
         assertNotNull(putResponse);
         assertEquals(HttpStatus.OK, putResponse.getStatusCode());
         assertNotNull(putResponse.getBody());
-        assertEquals(testId, putResponse.getBody().getId());
-        assertArrayEquals(testContent.getBytes(), putResponse.getBody().getLeft());
+        assertEquals(postResponse.getBody().getId(), putResponse.getBody().getId());
+        var resultMap = putResponse.getBody().getStatus();
+        assertEquals(14, resultMap.size());
+        var resultStatus = new int[14];
+        resultMap.forEach((key, value) -> resultStatus[key - 1] = value);
+        var expected = new int[]{0, 7, 7, 7, 7, 7, 1, 6, 6, 6, 6, 6, 6, 0};
+        assertArrayEquals(expected, resultStatus);
     }
 
     @Test
-    public void shouldReturnRecordWhenPutRight() {
+    public void shouldReturnBadRequestWhenEmptyGameId() {
         //given
-        String testId = "testId";
-        String testContent = "testContent";
-        String url = "http://localhost:" + localPort + "/v1/diff/" + testId + "/right";
-        HttpEntity<String> request = new HttpEntity<>(Base64.getEncoder().encodeToString(testContent.getBytes()));
-        //when
-        ResponseEntity<DifferenceRecord> putResponse = testRestTemplate.exchange(url, HttpMethod.PUT, request, DifferenceRecord.class);
-        //then
-        assertNotNull(putResponse);
-        assertEquals(HttpStatus.OK, putResponse.getStatusCode());
-        assertNotNull(putResponse.getBody());
-        assertEquals(testId, putResponse.getBody().getId());
-        assertArrayEquals(testContent.getBytes(), putResponse.getBody().getRight());
-    }
+        var putUrl = "http://localhost:" + localPort + "/games/ /pits/0";
 
-    @Test
-    public void shouldReturnDifferenceWhenPutRightAndLeft() {
-        //given
-        String testId = "testId";
-        String testContent = "testContent";
-        String rightUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/right";
-        String leftUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/left";
-        String diffUrl = "http://localhost:" + localPort + "/v1/diff/" + testId;
-        HttpEntity<String> request = new HttpEntity<>(Base64.getEncoder().encodeToString(testContent.getBytes()));
         //when
-        testRestTemplate.exchange(rightUrl, HttpMethod.PUT, request, DifferenceRecord.class);
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, request, DifferenceRecord.class);
-        ResponseEntity<DifferenceResult> differenceResponse = testRestTemplate.getForEntity(diffUrl, DifferenceResult.class);
-        //then
-        assertNotNull(differenceResponse);
-        assertEquals(HttpStatus.OK, differenceResponse.getStatusCode());
-        assertNotNull(differenceResponse.getBody());
-        assertEquals(GameState.EQUALS, differenceResponse.getBody().getType());
-        assertNotNull(differenceResponse.getBody().getMessage());
-    }
-
-    @Test
-    public void shouldReturnEqualDifferenceWhenMultiplePutRightAndLeft() {
-        //given
-        String testId = "testId";
-        String testContent = "testContent";
-        String rightUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/right";
-        String leftUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/left";
-        String diffUrl = "http://localhost:" + localPort + "/v1/diff/" + testId;
-        HttpEntity<String> request = new HttpEntity<>(Base64.getEncoder().encodeToString(testContent.getBytes()));
-        //when
-        testRestTemplate.exchange(rightUrl, HttpMethod.PUT, request, DifferenceRecord.class);
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, request, DifferenceRecord.class);
-        testRestTemplate.exchange(rightUrl, HttpMethod.PUT, request, DifferenceRecord.class);
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, request, DifferenceRecord.class);
-        ResponseEntity<DifferenceResult> differenceResponse = testRestTemplate.getForEntity(diffUrl, DifferenceResult.class);
-        //then
-        assertNotNull(differenceResponse);
-        assertEquals(HttpStatus.OK, differenceResponse.getStatusCode());
-        assertNotNull(differenceResponse.getBody());
-        assertEquals(GameState.EQUALS, differenceResponse.getBody().getType());
-        assertNotNull(differenceResponse.getBody().getMessage());
-    }
-
-    @Test
-    public void shouldReturnSizeDifferenceWhenMultiplePutRightAndLeft() {
-        //given
-        String testId = "testId";
-        String leftContent = "leftContent";
-        String rightContent = "rightContent";
-        String rightUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/right";
-        String leftUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/left";
-        String diffUrl = "http://localhost:" + localPort + "/v1/diff/" + testId;
-        HttpEntity<String> leftRequest = new HttpEntity<>(Base64.getEncoder().encodeToString(leftContent.getBytes()));
-        HttpEntity<String> rightRequest = new HttpEntity<>(Base64.getEncoder().encodeToString(rightContent.getBytes()));
-        //when
-        testRestTemplate.exchange(rightUrl, HttpMethod.PUT, leftRequest, DifferenceRecord.class);
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, leftRequest, DifferenceRecord.class);
-        testRestTemplate.exchange(rightUrl, HttpMethod.PUT, rightRequest, DifferenceRecord.class);
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, leftRequest, DifferenceRecord.class);
-        ResponseEntity<DifferenceResult> differenceResponse = testRestTemplate.getForEntity(diffUrl, DifferenceResult.class);
-        //then
-        assertNotNull(differenceResponse);
-        assertEquals(HttpStatus.OK, differenceResponse.getStatusCode());
-        assertNotNull(differenceResponse.getBody());
-        assertEquals(GameState.DIFFERENT_SIZE, differenceResponse.getBody().getType());
-        assertNotNull(differenceResponse.getBody().getMessage());
-    }
-
-    @Test
-    public void shouldReturnContentDifferenceWhenMultiplePutRightAndLeft() {
-        //given
-        String testId = "testId";
-        String leftContent = "rightSAMEPARTright";
-        String rightContent = "lleftSAMEPARTlleft";
-        String rightUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/right";
-        String leftUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/left";
-        String diffUrl = "http://localhost:" + localPort + "/v1/diff/" + testId;
-        HttpEntity<String> leftRequest = new HttpEntity<>(Base64.getEncoder().encodeToString(leftContent.getBytes()));
-        HttpEntity<String> rightRequest = new HttpEntity<>(Base64.getEncoder().encodeToString(rightContent.getBytes()));
-        //when
-        testRestTemplate.exchange(rightUrl, HttpMethod.PUT, leftRequest, DifferenceRecord.class);
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, leftRequest, DifferenceRecord.class);
-        testRestTemplate.exchange(rightUrl, HttpMethod.PUT, rightRequest, DifferenceRecord.class);
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, leftRequest, DifferenceRecord.class);
-        ResponseEntity<DifferenceResult> differenceResponse = testRestTemplate.getForEntity(diffUrl, DifferenceResult.class);
-        //then
-        assertNotNull(differenceResponse);
-        assertEquals(HttpStatus.OK, differenceResponse.getStatusCode());
-        assertNotNull(differenceResponse.getBody());
-        assertEquals(GameState.DIFFERENT_CONTENT, differenceResponse.getBody().getType());
-        assertNotNull(differenceResponse.getBody().getMessage());
-        assertTrue(differenceResponse.getBody().getMessage().contains("(0, 4)"));
-        assertTrue(differenceResponse.getBody().getMessage().contains("(13, 4)"));
-    }
-
-    @Test
-    public void shouldReturnBadRequestWhenEmptyLeftContent() {
-        //given
-        String testId = "testId";
-        String url = "http://localhost:" + localPort + "/v1/diff/" + testId + "/left";
-        HttpEntity<String> request = new HttpEntity<>("");
-        //when
-        ResponseEntity<DifferenceRecord> putResponse = testRestTemplate.exchange(url, HttpMethod.PUT, request, DifferenceRecord.class);
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, LinkedHashMap.class);
         //then
         assertNotNull(putResponse);
         assertEquals(HttpStatus.BAD_REQUEST, putResponse.getStatusCode());
         assertNotNull(putResponse.getBody());
-        assertNull(putResponse.getBody().getId());
+        assertEquals("Invalid entity Id", putResponse.getBody().get("message"));
     }
 
     @Test
-    public void shouldReturnBadRequestWhenEmptyRightContent() {
+    public void shouldReturnBadRequestWhenWrongGameId() {
         //given
-        String testId = "testId";
-        String url = "http://localhost:" + localPort + "/v1/diff/" + testId + "/right";
-        HttpEntity<String> request = new HttpEntity<>("");
+        var putUrl = "http://localhost:" + localPort + "/games/123/pits/0";
+
         //when
-        ResponseEntity<DifferenceRecord> putResponse = testRestTemplate.exchange(url, HttpMethod.PUT, request, DifferenceRecord.class);
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, LinkedHashMap.class);
         //then
         assertNotNull(putResponse);
         assertEquals(HttpStatus.BAD_REQUEST, putResponse.getStatusCode());
         assertNotNull(putResponse.getBody());
-        assertNull(putResponse.getBody().getId());
+        assertEquals("Invalid entity Id", putResponse.getBody().get("message"));
     }
 
     @Test
-    public void shouldReturnNotFoundWhenWrongId() {
+    public void shouldReturnBadRequestWhenEmptyPitId() {
         //given
-        String testId = "testId";
-        String leftContent = "leftContent";
-        String rightContent = "rightContent";
-        String rightUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/right";
-        String leftUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/left";
-        String diffUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "1";
-        HttpEntity<String> leftRequest = new HttpEntity<>(Base64.getEncoder().encodeToString(leftContent.getBytes()));
-        HttpEntity<String> rightRequest = new HttpEntity<>(Base64.getEncoder().encodeToString(rightContent.getBytes()));
+        var putUrl = "http://localhost:" + localPort + "/games/1/pits/ ";
+
         //when
-        testRestTemplate.exchange(rightUrl, HttpMethod.PUT, rightRequest, DifferenceRecord.class);
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, leftRequest, DifferenceRecord.class);
-        ResponseEntity<DifferenceResult> differenceResponse = testRestTemplate.getForEntity(diffUrl, DifferenceResult.class);
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, LinkedHashMap.class);
         //then
-        assertNotNull(differenceResponse);
-        assertEquals(HttpStatus.NOT_FOUND, differenceResponse.getStatusCode());
-        assertNotNull(differenceResponse.getBody());
-        assertNotNull(differenceResponse.getBody().getMessage());
+        assertNotNull(putResponse);
+        assertEquals(HttpStatus.BAD_REQUEST, putResponse.getStatusCode());
+        assertNotNull(putResponse.getBody());
+        assertEquals("Invalid entity Id", putResponse.getBody().get("message"));
     }
 
     @Test
-    public void shouldReturnNotFoundWhenOnlyOnePartExists() {
+    public void shouldReturnBadRequestWhenNotNumericPitId() {
         //given
-        String testId = "testId";
-        String leftContent = "leftContent";
-        String leftUrl = "http://localhost:" + localPort + "/v1/diff/" + testId + "/left";
-        String diffUrl = "http://localhost:" + localPort + "/v1/diff/" + testId;
-        HttpEntity<String> leftRequest = new HttpEntity<>(Base64.getEncoder().encodeToString(leftContent.getBytes()));
+        var putUrl = "http://localhost:" + localPort + "/games/" + UUID.randomUUID().toString() + "/pits/abc";
+
         //when
-        testRestTemplate.exchange(leftUrl, HttpMethod.PUT, leftRequest, DifferenceRecord.class);
-        ResponseEntity<DifferenceResult> differenceResponse = testRestTemplate.getForEntity(diffUrl, DifferenceResult.class);
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, LinkedHashMap.class);
         //then
-        assertNotNull(differenceResponse);
-        assertEquals(HttpStatus.NOT_FOUND, differenceResponse.getStatusCode());
-        assertNotNull(differenceResponse.getBody());
-        assertNotNull(differenceResponse.getBody().getMessage());
+        assertNotNull(putResponse);
+        assertEquals(HttpStatus.BAD_REQUEST, putResponse.getStatusCode());
+        assertNotNull(putResponse.getBody());
+        assertEquals("Invalid pitId. Should be in [1-6,8-13] range", putResponse.getBody().get("message"));
+    }
+
+    @Test
+    public void shouldReturnBadRequestWhenOutOfRangePitId() {
+        //given
+        var putUrl = "http://localhost:" + localPort + "/games/" + UUID.randomUUID().toString() + "/pits/15";
+
+        //when
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, LinkedHashMap.class);
+        //then
+        assertNotNull(putResponse);
+        assertEquals(HttpStatus.BAD_REQUEST, putResponse.getStatusCode());
+        assertNotNull(putResponse.getBody());
+        assertEquals("Invalid pitId. Should be in [1-6,8-13] range", putResponse.getBody().get("message"));
+    }
+
+    @Test
+    public void shouldReturnBadRequestWhenNotAllowedPitId() {
+        //given
+        var putUrl = "http://localhost:" + localPort + "/games/" + UUID.randomUUID().toString() + "/pits/7";
+
+        //when
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, LinkedHashMap.class);
+        //then
+        assertNotNull(putResponse);
+        assertEquals(HttpStatus.BAD_REQUEST, putResponse.getStatusCode());
+        assertNotNull(putResponse.getBody());
+        assertEquals("Invalid pitId. Should be in [1-6,8-13] range", putResponse.getBody().get("message"));
+    }
+
+    @Test
+    public void shouldReturnNotFoundWhenNonExistingGameId() {
+        //given
+        var id = UUID.randomUUID();
+        var putUrl = "http://localhost:" + localPort + "/games/" + id + "/pits/4";
+
+        //when
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, LinkedHashMap.class);
+        //then
+        assertNotNull(putResponse);
+        assertEquals(HttpStatus.NOT_FOUND, putResponse.getStatusCode());
+        assertNotNull(putResponse.getBody());
+        assertEquals("Game record was not found", putResponse.getBody().get("message"));
+    }
+
+    @Test
+    public void shouldReturnConflictWhenWrongMove() {
+        //given
+        var postUrl = "http://localhost:" + localPort + "/games";
+
+        //when
+        var postResponse = testRestTemplate.exchange(postUrl, HttpMethod.POST, HttpEntity.EMPTY, KalahGameState.class);
+        var putUrl = postResponse.getBody().getUrl() + "/pits/9";
+        var putResponse = testRestTemplate.exchange(putUrl, HttpMethod.PUT, HttpEntity.EMPTY, LinkedHashMap.class);
+        //then
+        assertNotNull(putResponse);
+        assertEquals(HttpStatus.CONFLICT, putResponse.getStatusCode());
+        assertNotNull(putResponse.getBody());
+        assertEquals("PitId conflicts current game state", putResponse.getBody().get("message"));
     }
 }

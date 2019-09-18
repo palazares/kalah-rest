@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
+
 /**
  * Implementation of {@code KalahGameService} interface.
  * Integrates with reactive CRUD storage, makes validation checks, builds game results
@@ -38,6 +40,14 @@ public class KalahGameServiceImpl implements KalahGameService {
             return Mono.error(new InavlidIdException());
         }
 
+        UUID id;
+        try {
+            id = UUID.fromString(gameId);
+        } catch (Exception e) {
+            log.debug("Move request has game id not in UUID format");
+            return Mono.error(new InavlidIdException());
+        }
+
         if (pitIdString == null || pitIdString.trim().isEmpty()) {
             log.debug("Move request has empty pit id");
             return Mono.error(new InavlidIdException());
@@ -56,7 +66,7 @@ public class KalahGameServiceImpl implements KalahGameService {
             return Mono.error(new InvalidPitIdException());
         }
 
-        var record = repository.findById(gameId).switchIfEmpty(Mono.error(new InvalidRecordException()));
+        var record = repository.findById(id).switchIfEmpty(Mono.error(new InvalidRecordException()));
 
         return record.flatMap(r -> {
             try {

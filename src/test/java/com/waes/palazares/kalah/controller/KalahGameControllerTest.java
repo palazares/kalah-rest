@@ -1,6 +1,7 @@
 package com.waes.palazares.kalah.controller;
 
 import com.waes.palazares.kalah.domain.GameState;
+import com.waes.palazares.kalah.domain.KalahGameRecord;
 import com.waes.palazares.kalah.service.KalahGameServiceImpl;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -11,7 +12,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
-import java.util.Base64;
+import java.util.UUID;
 
 import static org.mockito.Mockito.*;
 
@@ -19,72 +20,50 @@ import static org.mockito.Mockito.*;
 @WebFluxTest(controllers = KalahGameController.class)
 public class KalahGameControllerTest {
     @Autowired
-    WebTestClient client;
+    private WebTestClient client;
 
     @MockBean
     private KalahGameServiceImpl service;
 
     @Test
-    public void shouldCallServiceWhenPutLeft() throws Exception {
+    public void shouldCallServiceWhenPostGame() {
         //given
-        String testId = "testId";
-        String testContent = "testContent";
-        var testRecord = Mono.just(DifferenceRecord.builder().id(testId).left(testContent.getBytes()).build());
+        var id = UUID.randomUUID();
+        var status = new int[]{6, 6, 6, 6, 6, 6, 0, 6, 6, 6, 6, 6, 6, 0};
+        var state = GameState.SOUTH_TURN;
+        var game = new KalahGameRecord(id, status, state);
         //when
-        when(differenceService.putLeft(testId, testContent)).thenReturn(testRecord);
+        when(service.create()).thenReturn(Mono.just(game));
         //then
         client
-                .put()
-                .uri("/v1/diff/" + testId + "/left")
-                .syncBody(testContent)
+                .post()
+                .uri("/games")
                 .exchange()
-                .expectStatus().isOk()
-                .expectBody().jsonPath("id").isEqualTo(testId)
-                .jsonPath("left").isEqualTo(Base64.getEncoder().encodeToString(testContent.getBytes()));
-        verify(differenceService, times(1)).putLeft(testId, testContent);
+                .expectStatus().isCreated()
+                .expectBody().jsonPath("id").isEqualTo(id.toString())
+                .jsonPath("url").isNotEmpty();
+        verify(service, times(1)).create();
     }
 
     @Test
-    public void shouldCallServiceWhenPutRight() throws Exception {
+    public void shouldCallServiceWhenPutMove() {
         //given
-        String testId = "testId";
-        String testContent = "testContent";
-        var testRecord = Mono.just(DifferenceRecord.builder().id(testId).right(testContent.getBytes()).build());
+        var id = UUID.randomUUID();
+        var status = new int[]{6, 6, 6, 6, 6, 6, 0, 6, 6, 6, 6, 6, 6, 0};
+        var state = GameState.SOUTH_TURN;
+        var game = new KalahGameRecord(id, status, state);
         //when
-        when(differenceService.putRight(testId, testContent)).thenReturn(testRecord);
+        when(service.move(any(), any())).thenReturn(Mono.just(game));
         //then
         client
                 .put()
-                .uri("/v1/diff/" + testId + "/right")
-                .syncBody(testContent)
+                .uri("/games/1/pits/1")
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody().jsonPath("id").isEqualTo(testId)
-                .jsonPath("right").isEqualTo(Base64.getEncoder().encodeToString(testContent.getBytes()));
-        verify(differenceService, times(1)).putRight(testId, testContent);
-    }
-
-    @Test
-    public void shouldCallServiceWhenGetDifference() throws Exception {
-        //given
-        String testId = "testId";
-        String testMessage = "testEquals";
-        var testRecord = Mono.just(DifferenceRecord.builder()
-                .id(testId)
-                .result(DifferenceResult.builder().type(GameState.EQUALS).message(testMessage).build())
-                .build());
-        //when
-        when(differenceService.getDifference(testId)).thenReturn(testRecord);
-        //then
-        client
-                .get()
-                .uri("/v1/diff/" + testId)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody().jsonPath("type").isEqualTo(GameState.EQUALS.toString())
-                .jsonPath("message").isEqualTo(testMessage);
-
-        verify(differenceService, times(1)).getDifference(testId);
+                .expectBody().jsonPath("id").isEqualTo(id.toString())
+                .jsonPath("url").isNotEmpty()
+                .jsonPath("status").isMap();
+        verify(service, times(1)).move(eq("1"), eq("1"));
     }
 
     @Test

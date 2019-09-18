@@ -24,6 +24,9 @@ public final class KalahGame {
      * @throws GameFinishedException when the game is in finished state
      */
     public static KalahGameRecord makeMove(KalahGameRecord game, int pitId) throws GameFinishedException {
+        if (game.getState() == GameState.FINISHED) {
+            throw new GameFinishedException();
+        }
         var status = Arrays.copyOf(game.getStatus(), 14);
         var pitValue = status[pitId - 1];
 

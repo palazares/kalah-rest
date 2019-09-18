@@ -19,25 +19,27 @@ public class KalahGameTest {
     @Test(expected = GameFinishedException.class)
     public void shouldThrowGameFinishedException() throws GameFinishedException {
         //given
+        var id = UUID.randomUUID();
         var status = new int[]{6, 6, 6, 6, 6, 6, 0, 6, 6, 6, 6, 6, 6, 0};
         var state = GameState.FINISHED;
-        var game = new KalahGameRecord(UUID.fromString("test"), status, state);
+        var game = new KalahGameRecord(id, status, state);
         //when
-        KalahGame.makeMove(game, 0);
+        KalahGame.makeMove(game, 1);
     }
 
     @Test
     public void shouldMakeSimpleMove() throws GameFinishedException {
         //given
+        var id = UUID.randomUUID();
         var status = new int[]{6, 6, 6, 6, 6, 6, 0, 6, 6, 6, 6, 6, 6, 0};
         var state = GameState.SOUTH_TURN;
-        var game = new KalahGameRecord(UUID.fromString("test"), status, state);
+        var game = new KalahGameRecord(id, status, state);
         //when
-        var resultGame = KalahGame.makeMove(game, 0);
+        var resultGame = KalahGame.makeMove(game, 2);
         //then
         assertNotNull(resultGame);
-        assertEquals("test", resultGame.getId().toString());
+        assertEquals(id, resultGame.getId());
         assertEquals(GameState.NORTH_TURN, resultGame.getState());
-        Assert.assertArrayEquals(new int[]{6, 6, 6, 6, 6, 6, 0, 6, 6, 6, 6, 6, 6, 0}, resultGame.getStatus());
+        Assert.assertArrayEquals(new int[]{6, 0, 7, 7, 7, 7, 1, 7, 6, 6, 6, 6, 6, 0}, resultGame.getStatus());
     }
 }

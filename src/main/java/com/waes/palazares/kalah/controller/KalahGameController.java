@@ -5,10 +5,12 @@ import com.waes.palazares.kalah.domain.KalahGameState;
 import com.waes.palazares.kalah.service.KalahGameService;
 import io.swagger.annotations.Api;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
-import javax.servlet.http.HttpServletRequest;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -36,8 +38,8 @@ public class KalahGameController {
      * @return Kalah game state after a turn
      */
     @PutMapping("/games/{gameId}/pits/{pitId}")
-    public Mono<KalahGameState> makeTurn(@PathVariable String gameId, @PathVariable String pitId, HttpServletRequest request) {
-        return service.move(gameId, pitId).map(x -> toState(x, request.getRequestURL()));
+    public Mono<KalahGameState> makeTurn(@PathVariable String gameId, @PathVariable String pitId, ServerHttpRequest request) {
+        return service.move(gameId, pitId).map(x -> toState(x, request.getURI()));
     }
 
     /**
@@ -46,13 +48,14 @@ public class KalahGameController {
      * @return New Kalah game state
      */
     @PostMapping("/games")
-    public Mono<KalahGameState> createGame(HttpServletRequest request) {
-        return service.create().map(x -> toState(x, request.getRequestURL()));
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<KalahGameState> createGame(ServerHttpRequest request) {
+        return service.create().map(x -> toState(x, request.getURI()));
     }
 
-    private static KalahGameState toState(KalahGameRecord gameRecord, StringBuffer baseUrl) {
+    private static KalahGameState toState(KalahGameRecord gameRecord, URI baseUrl) {
         var id = gameRecord.getId().toString();
-        var url = baseUrl.append("/").append(id).toString();
+        var url = baseUrl.toString() + "/" + id;
         var status = IntStream.range(0, 14)
                 .collect(HashMap<Integer, Integer>::new, (m, i) -> m.put(i + 1, gameRecord.getStatus()[i]), Map::putAll);
         return new KalahGameState(id, url, status);
