@@ -1,7 +1,6 @@
 package com.waes.palazares.kalah.service;
 
 import com.waes.palazares.kalah.KalahGame;
-import com.waes.palazares.kalah.domain.GameState;
 import com.waes.palazares.kalah.domain.KalahGameRecord;
 import com.waes.palazares.kalah.exception.*;
 import com.waes.palazares.kalah.repository.KalahGameRepository;
@@ -79,23 +78,6 @@ public class KalahGameServiceImpl implements KalahGameService {
     }
 
     private static KalahGameRecord makeMove(KalahGameRecord game, int pitId) throws GameFinishedException, InvalidMoveException {
-        if (game.getState() == GameState.FINISHED) {
-            log.debug("Move request for already finished game");
-            throw new GameFinishedException();
-        }
-        if (game.getState() == GameState.NORTH_TURN && pitId < 8) {
-            log.debug("Move request for wrong player. pit: {}", pitId);
-            throw new InvalidMoveException();
-        }
-        if (game.getState() == GameState.SOUTH_TURN && pitId > 6) {
-            log.debug("Move request for wrong player. pit: {}", pitId);
-            throw new InvalidMoveException();
-        }
-        if (game.getStatus()[pitId - 1] < 1) {
-            log.debug("Move request for empty pit: {}", pitId);
-            throw new InvalidMoveException();
-        }
-
         return KalahGame.makeMove(game, pitId);
     }
 }
